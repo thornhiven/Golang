@@ -2,6 +2,6 @@
 /gettasklist
 
 удалить запрос
-/deltask&id=[ID]
+/deltask?id=[ID]
 
 создать запрос
