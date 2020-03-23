@@ -5,10 +5,15 @@
 /deltask?id=[ID]
 
 создать запрос
-http://localhost:8080/task
+/task
 {
-	"method": "post",
+	"method": "get",
 	"url": "http://google.com",
-	"header": "application/json",
+	"header": {
+        	"Cache-Control": ["no-cache"],
+        	"Content-Security-Policy": ["default-src * data: blob: 'unsafe-eval' 'unsafe-inline'"],
+        	"Content-Type": ["text/html;charset=UTF-8"],
+        	"Date": ["Mon, 23 Mar 2020 07:37:55 GMT"]
+    	},
 	"body": "hello, world!"
 }
