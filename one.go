@@ -11,17 +11,18 @@ import (
 )
 
 type Task struct{
-	ID string
-	Method string `json:"method"`
-	Url string `json:"url"`
-	TaskResult
+	ID    	 string
+	Method 	 string   `json:"method"`
+	Url    	 string   `json:"url"`
+	Header   string   `json:"header"`
+	Body     string   `json:"body"`
 }
 
 type TaskResult struct{
-	ID string
+	ID 			string
 	StatusCode  int
-	LenResponse int
-	Headers string
+	LenResponse int64
+	Header  	http.Header
 }
 
 
@@ -50,102 +51,95 @@ func getTaskList(w http.ResponseWriter, r *http.Request){
 			http.Error(w, err.Error(), 500)
 			return
 		}
-
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(res)
 
 	}
-	
+
 }
 
 func createTask(w http.ResponseWriter, r *http.Request){
-	
+
 	body, err := ioutil.ReadAll(r.Body)
-	
+
 	defer r.Body.Close()
-	
+
 	if err != nil {
 		panic(err)
 	}
 
 	var task Task
-	err=nil
-	
+
 	err = json.Unmarshal(body, &task)
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		return
 	}
 	//todo сделать нормальный генератор
-	
+
 
 	task.ID=strconv.Itoa(id)
 	id++
 	strings.ToUpper(task.Method)
 	taskList[task.ID] = task
-	
+
 	var resp *http.Response
-	
-	err=nil
-	if strings.ToUpper(task.Method) == "GET" {
-		resp, err = http.Get(task.Url)
-	} else {
 
-		// todo 
+	switch strings.ToUpper(task.Method){
+		case "GET":		resp, err = http.Get(task.Url)
+		case "POST":	resp, err = http.Post(task.Url,task.Header,strings.NewReader(task.Body))
+		case "HEAD":	resp, err = http.Get(task.Url)
+		default:fmt.Println("Unknown method")//TODO
 	}
-	if err != nil {
-		http.Error(w, err.Error(), 400)
-	}
-	
-	err=nil
-	respBody, err := ioutil.ReadAll(resp.Body)
-	defer resp.Body.Close()
+
 
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 	}
-	
+
 	taskResp := TaskResult{
 		ID: task.ID,
 		StatusCode:  resp.StatusCode,
-		LenResponse: len(respBody),
-		//Headers:     "todo"
-	}
-	
-    err=nil
-	res, err := json.Marshal(taskResp)
-	if err != nil {
-		http.Error(w, err.Error(), 400)
-		return
+		LenResponse: resp.ContentLength,
+		Header: resp.Header,
 	}
 
+	res, err := json.Marshal(taskResp)
+	/*if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}*/
+
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(res)	
+	w.Write(res)
 }
 
 func main() {
-	
+
 	taskList=make(map[string]Task)
 	var t Task
-	t.ID="1"
-	t.Method="get"
-	t.Url="google.com"
+	t= Task{ID: "1",
+			Method: "get",
+			Url: "google.com",
+			}
 	taskList[t.ID]=t
-	t.ID="2"
-	t.Method="post"
-	t.Url="yandex.com"
+	t= Task{ID: "2",
+			Method: "get",
+			Url: "yandex.com",
+			}
+	taskList[t.ID]=t
+	t= Task{ID: "345",
+			Method: "post",
+			Url: "asd.ytr",
+			}
+	taskList[t.ID]=t
 	port:=":8080"
-	taskList[t.ID]=t
-	t.ID="345"
-	t.Method="get"
-	t.Url="goe.com"
-	taskList[t.ID]=t
-	
+
 	http.HandleFunc("/task", createTask)
 	http.HandleFunc("/gettasklist",getTaskList)
 	http.HandleFunc("/deltask",deltask)
 
-	err := http.ListenAndServe(port, nil) 
+	err := http.ListenAndServe(port, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
