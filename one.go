@@ -3,15 +3,17 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"flag"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"net"
 )
 
 type Task struct {
-	ID     int
+	ID     string
 	Method string      `json:"method"`
 	Url    string      `json:"url"`
 	Header http.Header `json:"header"`
@@ -19,21 +21,21 @@ type Task struct {
 }
 
 type TaskResult struct {
-	ID          int
+	ID          string
 	StatusCode  int
 	LenResponse int64
 	Header      http.Header
 }
 
-var taskList map[int]Task //список запросов
+var taskList map[string]Task //список запросов
 var idCounter int = 100
 
 //удаление запроса с заданым индексом
 func deltask(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	id, err := q["id"]
-	if !err {
-		http.Error(w, err.Error(), 400)
+	id, ok := q["id"]
+	if !ok {
+		http.Error(w, "id required", 400)
 		return
 	} else if _, ok := taskList[id[0]]; ok {
 		delete(taskList, id[0])
@@ -72,7 +74,7 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	task.ID = idCounter
+	task.ID= strconv.Itoa(idCounter)
 	idCounter++
 	taskList[task.ID] = task
 
@@ -104,7 +106,7 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	var port = flag.String("port", ":0808", "Port value")
+	var port = flag.String("port", "8080", "Port value")
 	flag.Parse()
 	taskList = make(map[string]Task)
 
@@ -112,7 +114,7 @@ func main() {
 	http.HandleFunc("/gettasklist", getTaskList)
 	http.HandleFunc("/deltask", deltask)
 
-	err := http.ListenAndServe(port, nil)
+	err := http.ListenAndServe(net.JoinHostPort("localhost", *port), nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
