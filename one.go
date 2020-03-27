@@ -2,14 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"flag"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
-	"net"
+
+	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 )
 
 type Task struct {
@@ -18,6 +17,10 @@ type Task struct {
 	Url    string      `json:"url"`
 	Header http.Header `json:"header"`
 	Body   string      `json:"body"`
+
+	StatusCode   int
+	LenResponse  int64
+	ResultHeader http.Header
 }
 
 type TaskResult struct {
@@ -31,91 +34,67 @@ var taskList map[string]Task //список запросов
 var idCounter int = 100
 
 //удаление запроса с заданым индексом
-func deltask(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	id, ok := q["id"]
-	if !ok {
-		http.Error(w, "id required", 400)
-		return
-	} else if _, ok := taskList[id[0]]; ok {
-		delete(taskList, id[0])
-		fmt.Fprintf(w, "Task deleted")
+func deltask(c echo.Context) error {
+	id := c.Param("id")
+	if _, ok := taskList[id]; ok {
+		delete(taskList, id)
+		return c.String(http.StatusOK, "Task Deleted")
 	} else {
-		fmt.Fprintf(w, "Id not exist")
+		return c.String(http.StatusOK, "Id not exist")
 	}
 }
 
 //возвращает список имеющихся запросов
-func getTaskList(w http.ResponseWriter, r *http.Request) {
-	for _, v := range taskList {
-		res, err := json.Marshal(v)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(res)
-	}
+func getTaskList(c echo.Context) error {
+	return c.JSON(http.StatusOK, taskList)
 }
 
 //считывает просьбу, выполняет и заносит в список
-func createTask(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
+func createTask(c echo.Context) error {
+	body, err := ioutil.ReadAll(c.Request().Body)
+	defer c.Request().Body.Close()
 	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
+		return c.String(400, "Body failed")
 	}
 
 	var task Task
 	err = json.Unmarshal(body, &task)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
-		return
+		return c.String(http.StatusOK, err.Error())
 	}
 
-	task.ID= strconv.Itoa(idCounter)
+	task.ID = strconv.Itoa(idCounter)
 	idCounter++
-	taskList[task.ID] = task
-
 	client := &http.Client{}
 	req, err := http.NewRequest(strings.ToUpper(task.Method), task.Url, nil)
+	req.Body = ioutil.NopCloser(strings.NewReader(task.Body))
 	req.Header = task.Header
 	resp, err := client.Do(req)
 
 	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
+		return c.String(400, err.Error())
 	}
+	task.StatusCode = resp.StatusCode
+	task.LenResponse = resp.ContentLength
+	task.ResultHeader = resp.Header
+	taskList[task.ID] = task
 
-	taskResp := TaskResult{
+	return c.JSON(http.StatusOK, TaskResult{
 		ID:          task.ID,
 		StatusCode:  resp.StatusCode,
 		LenResponse: resp.ContentLength,
 		Header:      resp.Header,
-	}
-
-	res, err := json.Marshal(taskResp)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(res)
+	})
 }
 
 func main() {
-
-	var port = flag.String("port", "8080", "Port value")
-	flag.Parse()
 	taskList = make(map[string]Task)
 
-	http.HandleFunc("/task", createTask)
-	http.HandleFunc("/gettasklist", getTaskList)
-	http.HandleFunc("/deltask", deltask)
-
-	err := http.ListenAndServe(net.JoinHostPort("localhost", *port), nil)
-	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
-	}
+	e := echo.New()
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+	e.POST("/task", createTask)
+	e.GET("/gettasklist", getTaskList)
+	e.GET("/deltask/:id", deltask)
+	e.Logger.Fatal(e.Start(":8080"))
 }
