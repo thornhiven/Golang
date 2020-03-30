@@ -1,14 +1,14 @@
 package main
 
 import (
-	"encoding/json"
+	//"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"github.com/labstack/echo"
-	"github.com/labstack/echo/middleware"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 type Task struct {
@@ -40,7 +40,7 @@ func deltask(c echo.Context) error {
 		delete(taskList, id)
 		return c.String(http.StatusOK, "Task Deleted")
 	} else {
-		return c.String(http.StatusOK, "Id not exist")
+		return c.String(http.StatusNotFound, "Id not found")
 	}
 }
 
@@ -51,22 +51,19 @@ func getTaskList(c echo.Context) error {
 
 //считывает просьбу, выполняет и заносит в список
 func createTask(c echo.Context) error {
-	body, err := ioutil.ReadAll(c.Request().Body)
-	defer c.Request().Body.Close()
-	if err != nil {
-		return c.String(400, "Body failed")
+
+	task:=new(Task)
+	if err := c.Bind(task); err != nil {
+		return c.String(400, err.Error())
 	}
 
-	var task Task
-	err = json.Unmarshal(body, &task)
-	if err != nil {
-		return c.String(http.StatusOK, err.Error())
-	}
-
-	task.ID = strconv.Itoa(idCounter)
 	idCounter++
+	taskList[task.ID] = *task
 	client := &http.Client{}
 	req, err := http.NewRequest(strings.ToUpper(task.Method), task.Url, nil)
+	if err != nil {
+		return c.String(400, err.Error())
+	}
 	req.Body = ioutil.NopCloser(strings.NewReader(task.Body))
 	req.Header = task.Header
 	resp, err := client.Do(req)
@@ -77,7 +74,7 @@ func createTask(c echo.Context) error {
 	task.StatusCode = resp.StatusCode
 	task.LenResponse = resp.ContentLength
 	task.ResultHeader = resp.Header
-	taskList[task.ID] = task
+	task.ID = strconv.Itoa(idCounter)
 
 	return c.JSON(http.StatusOK, TaskResult{
 		ID:          task.ID,
