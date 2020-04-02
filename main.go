@@ -1,27 +1,14 @@
 package main
 
+//noinspection ALL
 import (
-	//"encoding/json"
-	"io/ioutil"
-	"net/http"
-	"strconv"
-	"strings"
-
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go-task/store"
+	"io/ioutil"
+	"net/http"
+	"strings"
 )
-
-type Task struct {
-	ID     string
-	Method string      `json:"method"`
-	Url    string      `json:"url"`
-	Header http.Header `json:"header"`
-	Body   string      `json:"body"`
-
-	StatusCode   int
-	LenResponse  int64
-	ResultHeader http.Header
-}
 
 type TaskResult struct {
 	ID          string
@@ -30,14 +17,13 @@ type TaskResult struct {
 	Header      http.Header
 }
 
-var taskList map[string]Task //список запросов
-var idCounter int = 100
+var taskList store.TaskList //список запросов
+//var idCounter int = 100
 
 //удаление запроса с заданым индексом
 func deltask(c echo.Context) error {
 	id := c.Param("id")
-	if _, ok := taskList[id]; ok {
-		delete(taskList, id)
+	if taskList.DelTask(id) {
 		return c.String(http.StatusOK, "Task Deleted")
 	} else {
 		return c.String(http.StatusNotFound, "Id not found")
@@ -46,19 +32,17 @@ func deltask(c echo.Context) error {
 
 //возвращает список имеющихся запросов
 func getTaskList(c echo.Context) error {
-	return c.JSON(http.StatusOK, taskList)
+	return c.JSON(http.StatusOK, taskList.GetAllTasks())
 }
 
 //считывает просьбу, выполняет и заносит в список
 func createTask(c echo.Context) error {
 
-	task:=new(Task)
+	task := new(store.Task)
 	if err := c.Bind(task); err != nil {
 		return c.String(400, err.Error())
 	}
 
-	idCounter++
-	taskList[task.ID] = *task
 	client := &http.Client{}
 	req, err := http.NewRequest(strings.ToUpper(task.Method), task.Url, nil)
 	if err != nil {
@@ -74,10 +58,10 @@ func createTask(c echo.Context) error {
 	task.StatusCode = resp.StatusCode
 	task.LenResponse = resp.ContentLength
 	task.ResultHeader = resp.Header
-	task.ID = strconv.Itoa(idCounter)
+	id := taskList.AddTask(task)
 
 	return c.JSON(http.StatusOK, TaskResult{
-		ID:          task.ID,
+		ID:          id,
 		StatusCode:  resp.StatusCode,
 		LenResponse: resp.ContentLength,
 		Header:      resp.Header,
@@ -85,8 +69,8 @@ func createTask(c echo.Context) error {
 }
 
 func main() {
-	taskList = make(map[string]Task)
-
+	//taskList = make(map[string]Task)
+	taskList.Init()
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
