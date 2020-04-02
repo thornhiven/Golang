@@ -6,7 +6,7 @@ import (
 )
 
 func TestDelTask(t *testing.T) {
-	var s TaskList
+	var s Store
 	s.Init()
 	s.taskList["100"] = Task{
 		ID:     "100",
@@ -24,7 +24,7 @@ func TestDelTask(t *testing.T) {
 }
 
 func TestAddTask(t *testing.T) {
-	var s TaskList
+	var s Store
 	s.Init()
 	task := Task{
 		Method: "get",
@@ -38,7 +38,7 @@ func TestAddTask(t *testing.T) {
 }
 
 func TestGetAllTasks(t *testing.T) {
-	var s TaskList
+	var s Store
 	s.Init()
 	task := Task{
 		Method: "get",

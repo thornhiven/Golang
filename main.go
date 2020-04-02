@@ -17,7 +17,7 @@ type TaskResult struct {
 	Header      http.Header
 }
 
-var taskList store.TaskList //список запросов
+var taskList store.Store //список запросов
 //var idCounter int = 100
 
 //удаление запроса с заданым индексом

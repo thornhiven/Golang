@@ -17,25 +17,17 @@ type Task struct {
 	ResultHeader http.Header
 }
 
-type TaskList struct {
+type Store struct {
 	idCounter int
 	taskList  map[string]Task
 }
 
-/*
-type Store interface{
-	Init()
-	AddTask()
-	DelTask(id string)
-	GetAllTasks()
-}*/
-
-func (list *TaskList) Init() {
+func (list *Store) Init() {
 	list.taskList = make(map[string]Task)
 	list.idCounter = 100
 }
 
-func (list *TaskList) DelTask(id string) bool {
+func (list *Store) DelTask(id string) bool {
 	if _, ok := list.taskList[id]; ok {
 		delete(list.taskList, id)
 		return true
@@ -44,13 +36,13 @@ func (list *TaskList) DelTask(id string) bool {
 	}
 }
 
-func (list *TaskList) AddTask(task *Task) string {
+func (list *Store) AddTask(task *Task) string {
 	task.ID = strconv.Itoa(list.idCounter)
 	list.idCounter++
 	list.taskList[task.ID] = *task
 	return task.ID
 }
 
-func (list *TaskList) GetAllTasks() map[string]Task {
+func (list *Store) GetAllTasks() map[string]Task {
 	return list.taskList
 }
