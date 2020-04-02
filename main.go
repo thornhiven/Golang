@@ -18,7 +18,6 @@ type TaskResult struct {
 }
 
 var taskList store.Store //список запросов
-//var idCounter int = 100
 
 //удаление запроса с заданым индексом
 func deltask(c echo.Context) error {
@@ -69,8 +68,7 @@ func createTask(c echo.Context) error {
 }
 
 func main() {
-	//taskList = make(map[string]Task)
-	taskList.Init()
+	taskList = store.NewStore("map")
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())

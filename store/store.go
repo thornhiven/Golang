@@ -2,7 +2,6 @@ package store
 
 import (
 	"net/http"
-	"strconv"
 )
 
 type Task struct {
@@ -17,32 +16,19 @@ type Task struct {
 	ResultHeader http.Header
 }
 
-type Store struct {
-	idCounter int
-	taskList  map[string]Task
+type Store interface {
+	AddTask(t *Task) string
+	GetTask(id string) (Task, bool)
+	DelTask(id string) bool
+	GetAllTasks() map[string]Task
 }
 
-func (list *Store) Init() {
-	list.taskList = make(map[string]Task)
-	list.idCounter = 100
-}
-
-func (list *Store) DelTask(id string) bool {
-	if _, ok := list.taskList[id]; ok {
-		delete(list.taskList, id)
-		return true
-	} else {
-		return false
+func NewStore(storeType string) Store {
+	if storeType == "map" {
+		store := new(StoreMap)
+		store.taskList = make(map[string]Task)
+		store.idCounter = 100
+		return store
 	}
-}
-
-func (list *Store) AddTask(task *Task) string {
-	task.ID = strconv.Itoa(list.idCounter)
-	list.idCounter++
-	list.taskList[task.ID] = *task
-	return task.ID
-}
-
-func (list *Store) GetAllTasks() map[string]Task {
-	return list.taskList
+	return nil
 }
