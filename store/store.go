@@ -17,10 +17,10 @@ type Task struct {
 }
 
 type Store interface {
-	AddTask(t *Task) string
-	GetTask(id string) (Task, bool)
-	DelTask(id string) bool
-	GetAllTasks() map[string]Task
+	AddTask(t *Task) (string, error)
+	GetTask(id string) (Task, error)
+	DelTask(id string) error
+	GetAllTasks() ([]Task, error)
 }
 
 func NewStore(storeType string) Store {
@@ -30,5 +30,5 @@ func NewStore(storeType string) Store {
 		store.idCounter = 100
 		return store
 	}
-	return nil
+	panic("Store Не может быть создан с заданым парамметром")
 }
