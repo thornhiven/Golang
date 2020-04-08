@@ -43,7 +43,7 @@ func TestCreateTask(t *testing.T) {
 }
 
 func TestGetAllTasks(t *testing.T) {
-
+	taskList = store.NewStore("map")
 	e := echo.New()
 	req := httptest.NewRequest("GET", "/gettasklist", nil)
 	rec := httptest.NewRecorder()
