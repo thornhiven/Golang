@@ -4,6 +4,7 @@ package main
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+
 	"go-task/store"
 	"io/ioutil"
 	"net/http"
@@ -20,18 +21,22 @@ type TaskResult struct {
 var taskList store.Store //список запросов
 
 //удаление запроса с заданым индексом
-func deltask(c echo.Context) error {
+func delTask(c echo.Context) error {
 	id := c.Param("id")
-	if taskList.DelTask(id) {
+	if taskList.DelTask(id) == nil {
 		return c.String(http.StatusOK, "Task Deleted")
 	} else {
-		return c.String(http.StatusNotFound, "Id not found")
+		return echo.NewHTTPError(http.StatusNotFound, "user not found")
 	}
 }
 
 //возвращает список имеющихся запросов
 func getTaskList(c echo.Context) error {
-	return c.JSON(http.StatusOK, taskList.GetAllTasks())
+	tasks, err := taskList.GetAllTasks()
+	if err != nil {
+		return c.String(400, err.Error())
+	}
+	return c.JSON(http.StatusOK, tasks)
 }
 
 //считывает просьбу, выполняет и заносит в список
@@ -57,14 +62,17 @@ func createTask(c echo.Context) error {
 	task.StatusCode = resp.StatusCode
 	task.LenResponse = resp.ContentLength
 	task.ResultHeader = resp.Header
-	id := taskList.AddTask(task)
-
-	return c.JSON(http.StatusOK, TaskResult{
-		ID:          id,
-		StatusCode:  resp.StatusCode,
-		LenResponse: resp.ContentLength,
-		Header:      resp.Header,
-	})
+	id, err := taskList.AddTask(task)
+	if err != nil {
+		return c.String(400, err.Error())
+	} else {
+		return c.JSON(http.StatusOK, TaskResult{
+			ID:          id,
+			StatusCode:  resp.StatusCode,
+			LenResponse: resp.ContentLength,
+			Header:      resp.Header,
+		})
+	}
 }
 
 func main() {
@@ -74,6 +82,6 @@ func main() {
 	e.Use(middleware.Recover())
 	e.POST("/task", createTask)
 	e.GET("/gettasklist", getTaskList)
-	e.GET("/deltask/:id", deltask)
+	e.GET("/deltask/:id", delTask)
 	e.Logger.Fatal(e.Start(":8080"))
 }
